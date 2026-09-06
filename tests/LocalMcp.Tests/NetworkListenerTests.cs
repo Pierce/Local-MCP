@@ -10,9 +10,7 @@ public class NetworkListenerTests
     {
         // At the architecture level, verify that no TCP transport is configured.
         // The server only uses WithStdioServerTransport().
-        var programFile = Path.GetFullPath(Path.Combine(
-            AppContext.BaseDirectory, "..", "..", "..", "..", "..",
-            "src", "LocalMcp", "Program.cs"));
+        var programFile = Path.Combine(TestPaths.RepositoryRoot, "src", "LocalMcp", "Hosting", "LocalMcpApplication.cs");
         var programCode = File.ReadAllText(programFile);
 
         Assert.DoesNotContain("HttpTransport", programCode);
@@ -24,9 +22,7 @@ public class NetworkListenerTests
     [Fact]
     public void OnlyStdioTransport_IsConfigured()
     {
-        var programFile = Path.GetFullPath(Path.Combine(
-            AppContext.BaseDirectory, "..", "..", "..", "..", "..",
-            "src", "LocalMcp", "Program.cs"));
+        var programFile = Path.Combine(TestPaths.RepositoryRoot, "src", "LocalMcp", "Hosting", "LocalMcpApplication.cs");
         var programCode = File.ReadAllText(programFile);
 
         // The only transport configured must be stdio
@@ -39,9 +35,7 @@ public class NetworkListenerTests
     public void NoAspNetCoreDependency_IsPresent()
     {
         // Verify AspNetCore package is not referenced
-        var csprojPath = Path.GetFullPath(Path.Combine(
-            AppContext.BaseDirectory, "..", "..", "..", "..", "..",
-            "src", "LocalMcp", "LocalMcp.csproj"));
+        var csprojPath = Path.Combine(TestPaths.RepositoryRoot, "src", "LocalMcp", "LocalMcp.csproj");
         var csproj = File.ReadAllText(csprojPath);
 
         Assert.DoesNotContain("Microsoft.AspNetCore", csproj);

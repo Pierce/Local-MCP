@@ -65,7 +65,8 @@ public sealed class ProtocolSafeLogger : ILogger
         var output = $"[{timestamp}][{logLevelName}][{_categoryName}] {message}";
         if (exception is not null)
         {
-            output += $"\n{exception}";
+            // Exception text can contain host paths. Preserve only the stable type in local diagnostics.
+            output += $" ({exception.GetType().Name})";
         }
 
         System.Console.Error.WriteLine(output);

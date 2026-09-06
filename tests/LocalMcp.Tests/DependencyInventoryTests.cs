@@ -6,9 +6,7 @@ public class DependencyInventoryTests
 {
     private static string GetRepoRoot()
     {
-        // From test assembly: tests\LocalMcp.Tests\bin\Debug\net10.0\
-        return Path.GetFullPath(Path.Combine(
-            AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+        return TestPaths.RepositoryRoot;
     }
 
     [Fact]

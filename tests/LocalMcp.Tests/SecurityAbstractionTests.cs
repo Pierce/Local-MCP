@@ -54,7 +54,6 @@ public class SecurityAbstractionTests
 
     private static string GetSourceDir()
     {
-        return Path.GetFullPath(Path.Combine(
-            AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src"));
+        return Path.Combine(TestPaths.RepositoryRoot, "src");
     }
 }

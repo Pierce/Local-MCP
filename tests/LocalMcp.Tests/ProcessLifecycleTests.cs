@@ -1,50 +1,60 @@
-// Process lifecycle verification: the MCP server configuration ensures
-// clean startup and shutdown via the stdio transport SingleSessionMcpServerHostedService.
-// These tests verify by code review that the architecture is correct.
-
 using System.Diagnostics;
 
 namespace LocalMcp.Tests;
 
+[System.Runtime.Versioning.SupportedOSPlatform("windows")]
 public class ProcessLifecycleTests
 {
     [Fact]
     public void Process_UsesHostingPattern_ForCleanStartup()
     {
-        // Verify that the server uses Host.CreateApplicationBuilder + RunAsync
-        // which provides clean startup and shutdown lifecycle.
-        var programFile = Path.GetFullPath(Path.Combine(
-            AppContext.BaseDirectory, "..", "..", "..", "..", "..",
-            "src", "LocalMcp", "Program.cs"));
-
-        var programCode = File.ReadAllText(programFile);
-
-        Assert.Contains("Host.CreateApplicationBuilder", programCode);
-        Assert.Contains("RunAsync", programCode);
+        var applicationFile = Path.Combine(TestPaths.RepositoryRoot, "src", "LocalMcp", "Hosting", "LocalMcpApplication.cs");
+        var code = File.ReadAllText(applicationFile);
+        Assert.Contains("Host.CreateApplicationBuilder", code);
+        Assert.Contains("RunAsync", code);
+        Assert.Contains("DisableDefaults = true", code);
     }
 
     [Fact]
-    public void ProjectFileExists_ForPotentialProcessLaunch()
+    public async Task Process_FailsBeforeNormalStartup_WhenExplicitConfigurationIsMissing()
     {
-        // Verify the project file is at the expected location
-        var projectPath = Path.GetFullPath(Path.Combine(
-            AppContext.BaseDirectory, "..", "..", "..", "..", "..",
-            "src", "LocalMcp", "LocalMcp.csproj"));
-        Assert.True(File.Exists(projectPath), $"Project file not found: {projectPath}");
+        var result = await RunProcessAsync(["--config", Path.Combine(Path.GetTempPath(), $"missing-{Guid.NewGuid():N}.toml")], sendProtocol: false);
+        Assert.Equal(2, result.ExitCode);
+        Assert.Empty(result.Stdout);
+        Assert.Contains("CONFIG_NOT_FOUND", result.Stderr);
     }
 
     [Fact]
-    public async Task Process_CanBeLaunched_WithDotnetRun()
+    public async Task Process_ListsOnlyValidatedRoots_ThroughActualMcpProtocol()
     {
-        // Launch the server process briefly and verify it starts
-        var projectDir = Path.GetFullPath(Path.Combine(
-            AppContext.BaseDirectory, "..", "..", "..", "..", "..",
-            "src", "LocalMcp"));
+        using var workspace = new AuthorityTestWorkspace();
+        var missing = Path.Combine(workspace.BasePath, "missing");
+        workspace.WriteConfiguration(AuthorityTestWorkspace.CurrentConfiguration(
+            ("valid-runtime", workspace.ValidRootPath, "Runtime root", true),
+            ("invalid-runtime", missing, "Must not appear", true)));
 
+        var before = workspace.HashConfiguration();
+        var result = await RunProcessAsync(["--config", workspace.ConfigurationPath], sendProtocol: true);
+        var after = workspace.HashConfiguration();
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Equal(before, after);
+        Assert.DoesNotContain(workspace.BasePath, result.Stdout, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("valid-runtime", result.Stdout);
+        Assert.DoesNotContain("invalid-runtime", result.ToolCallResponse);
+        Assert.DoesNotContain(workspace.ValidRootPath, result.ToolCallResponse, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("list_roots", result.ToolsListResponse);
+        Assert.DoesNotContain("list_directory", result.ToolsListResponse);
+        Assert.DoesNotContain("read_text", result.ToolsListResponse);
+    }
+
+    private static async Task<ProcessResult> RunProcessAsync(string[] arguments, bool sendProtocol)
+    {
+        var projectDir = Path.Combine(TestPaths.RepositoryRoot, "src", "LocalMcp");
         var startInfo = new ProcessStartInfo
         {
             FileName = "dotnet",
-            Arguments = $"run --project \"{projectDir}\" --no-build",
+            Arguments = $"run --project \"{projectDir}\" --no-build -- {string.Join(' ', arguments.Select(argument => $"\"{argument}\""))}",
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -52,41 +62,30 @@ public class ProcessLifecycleTests
             CreateNoWindow = true,
         };
 
-        Process? process = null;
-        try
+        using var process = Process.Start(startInfo)!;
+        string toolsList = string.Empty;
+        string toolCall = string.Empty;
+        if (sendProtocol)
         {
-            process = Process.Start(startInfo);
-            Assert.NotNull(process);
-
-            // Give it a moment to start
-            await Task.Delay(TimeSpan.FromSeconds(2));
-
-            // The process is running if we can write to stdin and read from stdout
-            Assert.False(process.HasExited);
-
-            // Send a proper MCP initialize request
-            var initRequest = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-04-25\",\"capabilities\":{},\"clientInfo\":{\"name\":\"test-client\",\"version\":\"1.0.0\"}}}\n";
-            await process.StandardInput.WriteLineAsync(initRequest);
+            await process.StandardInput.WriteLineAsync("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{},\"clientInfo\":{\"name\":\"increment-one-test\",\"version\":\"1.0\"}}}");
             await process.StandardInput.FlushAsync();
-
-            // Wait briefly for response
-            await Task.Delay(TimeSpan.FromSeconds(1));
-
-            // Close stdin to trigger clean exit
-            process.StandardInput.Close();
-
-            // Wait for exit
-            var exited = process.WaitForExit(5000);
-            Assert.True(exited, "Process should exit cleanly within 5 seconds of stdin close");
-            Assert.Equal(0, process.ExitCode);
+            _ = await process.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(10));
+            await process.StandardInput.WriteLineAsync("{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}");
+            await process.StandardInput.WriteLineAsync("{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\",\"params\":{}}");
+            await process.StandardInput.FlushAsync();
+            toolsList = await process.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(10)) ?? string.Empty;
+            await process.StandardInput.WriteLineAsync("{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\",\"params\":{\"name\":\"list_roots\",\"arguments\":{}}}");
+            await process.StandardInput.FlushAsync();
+            toolCall = await process.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(10)) ?? string.Empty;
         }
-        finally
-        {
-            if (process is { HasExited: false })
-            {
-                try { process.Kill(); } catch { }
-            }
-            process?.Dispose();
-        }
+
+        process.StandardInput.Close();
+        var stdoutRemainder = await process.StandardOutput.ReadToEndAsync();
+        var stderr = await process.StandardError.ReadToEndAsync();
+        await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
+        var stdout = string.Join("\n", new[] { toolsList, toolCall, stdoutRemainder }.Where(value => value.Length > 0));
+        return new ProcessResult(process.ExitCode, stdout, stderr, toolsList, toolCall);
     }
+
+    private sealed record ProcessResult(int ExitCode, string Stdout, string Stderr, string ToolsListResponse, string ToolCallResponse);
 }

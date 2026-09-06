@@ -12,14 +12,12 @@ public class StdoutIsolationTests
     public void LoggingConfiguration_RoutesToStderr()
     {
         // Verify the server configures logging to a protocol-safe provider
-        var programFile = Path.GetFullPath(Path.Combine(
-            AppContext.BaseDirectory, "..", "..", "..", "..", "..",
-            "src", "LocalMcp", "Program.cs"));
+        var programFile = Path.Combine(TestPaths.RepositoryRoot, "src", "LocalMcp", "Hosting", "LocalMcpApplication.cs");
 
         var programCode = File.ReadAllText(programFile);
 
-        // The program must clear default loggers and add ProtocolSafeLoggerProvider
-        Assert.Contains("ClearProviders", programCode);
+        // Host defaults are disabled and only the protocol-safe provider is added.
+        Assert.Contains("DisableDefaults = true", programCode);
         Assert.Contains("ProtocolSafeLoggerProvider", programCode);
     }
 
@@ -27,9 +25,7 @@ public class StdoutIsolationTests
     public void ProtocolSafeLogger_WritesToStderr()
     {
         // Verify the ProtocolSafeLogger uses Console.Error (stderr)
-        var loggerFile = Path.GetFullPath(Path.Combine(
-            AppContext.BaseDirectory, "..", "..", "..", "..", "..",
-            "src", "LocalMcp", "Diagnostics", "ProtocolSafeLogger.cs"));
+        var loggerFile = Path.Combine(TestPaths.RepositoryRoot, "src", "LocalMcp", "Diagnostics", "ProtocolSafeLogger.cs");
 
         var loggerCode = File.ReadAllText(loggerFile);
 
@@ -41,9 +37,7 @@ public class StdoutIsolationTests
     public void NoDirectConsoleWrite_InProgram()
     {
         // Verify the program never writes directly to Console
-        var programFile = Path.GetFullPath(Path.Combine(
-            AppContext.BaseDirectory, "..", "..", "..", "..", "..",
-            "src", "LocalMcp", "Program.cs"));
+        var programFile = Path.Combine(TestPaths.RepositoryRoot, "src", "LocalMcp", "Hosting", "LocalMcpApplication.cs");
 
         var programCode = File.ReadAllText(programFile);
 
@@ -55,9 +49,7 @@ public class StdoutIsolationTests
     public void ProtocolSafeLogger_OutputsToStderr_NotStdout()
     {
         // Integration-style test: capture stderr and stdout to confirm separation
-        var loggerCode = File.ReadAllText(Path.GetFullPath(Path.Combine(
-            AppContext.BaseDirectory, "..", "..", "..", "..", "..",
-            "src", "LocalMcp", "Diagnostics", "ProtocolSafeLogger.cs")));
+        var loggerCode = File.ReadAllText(Path.Combine(TestPaths.RepositoryRoot, "src", "LocalMcp", "Diagnostics", "ProtocolSafeLogger.cs"));
 
         // Verify diagnostic output goes to stderr never stdout
         Assert.DoesNotContain("Console.Write", loggerCode);
