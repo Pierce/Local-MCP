@@ -4,7 +4,7 @@
 
 using System.Diagnostics;
 
-namespace LocalFilesMcp.Tests;
+namespace LocalMcp.Tests;
 
 public class ProcessLifecycleTests
 {
@@ -15,7 +15,7 @@ public class ProcessLifecycleTests
         // which provides clean startup and shutdown lifecycle.
         var programFile = Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory, "..", "..", "..", "..", "..",
-            "src", "LocalFilesMcp", "Program.cs"));
+            "src", "LocalMcp", "Program.cs"));
 
         var programCode = File.ReadAllText(programFile);
 
@@ -29,7 +29,7 @@ public class ProcessLifecycleTests
         // Verify the project file is at the expected location
         var projectPath = Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory, "..", "..", "..", "..", "..",
-            "src", "LocalFilesMcp", "LocalFilesMcp.csproj"));
+            "src", "LocalMcp", "LocalMcp.csproj"));
         Assert.True(File.Exists(projectPath), $"Project file not found: {projectPath}");
     }
 
@@ -39,7 +39,7 @@ public class ProcessLifecycleTests
         // Launch the server process briefly and verify it starts
         var projectDir = Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory, "..", "..", "..", "..", "..",
-            "src", "LocalFilesMcp"));
+            "src", "LocalMcp"));
 
         var startInfo = new ProcessStartInfo
         {

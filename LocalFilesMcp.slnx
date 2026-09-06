@@ -1,8 +1,0 @@
-<Solution>
-  <Folder Name="/src/">
-    <Project Path="src/LocalFilesMcp/LocalFilesMcp.csproj" />
-  </Folder>
-  <Folder Name="/tests/">
-    <Project Path="tests/LocalFilesMcp.Tests/LocalFilesMcp.Tests.csproj" />
-  </Folder>
-</Solution>

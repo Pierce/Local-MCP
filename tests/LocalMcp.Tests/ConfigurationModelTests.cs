@@ -2,10 +2,10 @@
 // open, enumerate, or authorize host filesystem roots.
 // The models are plain data transfer objects with no host-path side effects.
 
-using LocalFilesMcp.Configuration;
+using LocalMcp.Configuration;
 using Tomlyn;
 
-namespace LocalFilesMcp.Tests;
+namespace LocalMcp.Tests;
 
 public class ConfigurationModelTests
 {

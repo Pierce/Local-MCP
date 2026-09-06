@@ -481,7 +481,7 @@ $RECYCLE.BIN/
 # Vim temporary swap files
 *.swp
 
-# Local Files MCP project-specific
+# Local MCP project-specific
 build*.log
 build_out.txt
 build_result.txt

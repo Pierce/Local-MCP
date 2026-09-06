@@ -4,7 +4,7 @@
 
 using System.Text.RegularExpressions;
 
-namespace LocalFilesMcp.Tests;
+namespace LocalMcp.Tests;
 
 public class StdoutIsolationTests
 {
@@ -14,7 +14,7 @@ public class StdoutIsolationTests
         // Verify the server configures logging to a protocol-safe provider
         var programFile = Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory, "..", "..", "..", "..", "..",
-            "src", "LocalFilesMcp", "Program.cs"));
+            "src", "LocalMcp", "Program.cs"));
 
         var programCode = File.ReadAllText(programFile);
 
@@ -29,7 +29,7 @@ public class StdoutIsolationTests
         // Verify the ProtocolSafeLogger uses Console.Error (stderr)
         var loggerFile = Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory, "..", "..", "..", "..", "..",
-            "src", "LocalFilesMcp", "Diagnostics", "ProtocolSafeLogger.cs"));
+            "src", "LocalMcp", "Diagnostics", "ProtocolSafeLogger.cs"));
 
         var loggerCode = File.ReadAllText(loggerFile);
 
@@ -43,7 +43,7 @@ public class StdoutIsolationTests
         // Verify the program never writes directly to Console
         var programFile = Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory, "..", "..", "..", "..", "..",
-            "src", "LocalFilesMcp", "Program.cs"));
+            "src", "LocalMcp", "Program.cs"));
 
         var programCode = File.ReadAllText(programFile);
 
@@ -57,7 +57,7 @@ public class StdoutIsolationTests
         // Integration-style test: capture stderr and stdout to confirm separation
         var loggerCode = File.ReadAllText(Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory, "..", "..", "..", "..", "..",
-            "src", "LocalFilesMcp", "Diagnostics", "ProtocolSafeLogger.cs")));
+            "src", "LocalMcp", "Diagnostics", "ProtocolSafeLogger.cs")));
 
         // Verify diagnostic output goes to stderr never stdout
         Assert.DoesNotContain("Console.Write", loggerCode);

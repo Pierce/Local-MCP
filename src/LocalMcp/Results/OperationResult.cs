@@ -1,9 +1,9 @@
-// Internal result and error types for Local Files MCP operations.
+// Internal result and error types for Local MCP operations.
 // These types are designed for internal use only and avoid exposing
 // host absolute paths, native object identifiers, or sensitive local
 // information in MCP-facing layers.
 
-namespace LocalFilesMcp.Results;
+namespace LocalMcp.Results;
 
 /// <summary>
 /// Represents the outcome of an internal operation.

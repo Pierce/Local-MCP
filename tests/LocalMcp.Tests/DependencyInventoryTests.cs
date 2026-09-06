@@ -1,12 +1,12 @@
 // Verify dependency inventory and exact versions.
 
-namespace LocalFilesMcp.Tests;
+namespace LocalMcp.Tests;
 
 public class DependencyInventoryTests
 {
     private static string GetRepoRoot()
     {
-        // From test assembly: tests\LocalFilesMcp.Tests\bin\Debug\net10.0\
+        // From test assembly: tests\LocalMcp.Tests\bin\Debug\net10.0\
         return Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
     }
@@ -14,7 +14,7 @@ public class DependencyInventoryTests
     [Fact]
     public void MainProject_HasExpectedDependencies()
     {
-        var csprojPath = Path.Combine(GetRepoRoot(), "src", "LocalFilesMcp", "LocalFilesMcp.csproj");
+        var csprojPath = Path.Combine(GetRepoRoot(), "src", "LocalMcp", "LocalMcp.csproj");
         var csproj = File.ReadAllText(csprojPath);
 
         // Verify expected packages are present with versions pinned
@@ -30,7 +30,7 @@ public class DependencyInventoryTests
     [Fact]
     public void TestProject_HasExpectedDependencies()
     {
-        var csprojPath = Path.Combine(GetRepoRoot(), "tests", "LocalFilesMcp.Tests", "LocalFilesMcp.Tests.csproj");
+        var csprojPath = Path.Combine(GetRepoRoot(), "tests", "LocalMcp.Tests", "LocalMcp.Tests.csproj");
         var csproj = File.ReadAllText(csprojPath);
 
         Assert.Contains("xunit", csproj);

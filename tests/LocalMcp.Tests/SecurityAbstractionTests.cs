@@ -1,7 +1,7 @@
 // Verify that no shell-execution, process-execution, or filesystem-mutation
 // abstractions have been introduced in Increment 0.
 
-namespace LocalFilesMcp.Tests;
+namespace LocalMcp.Tests;
 
 public class SecurityAbstractionTests
 {

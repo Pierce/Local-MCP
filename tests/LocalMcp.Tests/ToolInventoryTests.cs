@@ -1,7 +1,7 @@
 // Verify that no filesystem MCP tools are registered and no
 // placeholder tools exist. Increment 0 is a non-capability baseline.
 
-namespace LocalFilesMcp.Tests;
+namespace LocalMcp.Tests;
 
 public class ToolInventoryTests
 {
@@ -10,7 +10,7 @@ public class ToolInventoryTests
     {
         var programFile = Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory, "..", "..", "..", "..", "..",
-            "src", "LocalFilesMcp", "Program.cs"));
+            "src", "LocalMcp", "Program.cs"));
 
         var programCode = File.ReadAllText(programFile);
 

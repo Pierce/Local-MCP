@@ -2,11 +2,11 @@
 // This is covered by the test runner itself, but this class explicitly
 // verifies that key types from the Increment 0 scaffold are reachable.
 
-using LocalFilesMcp.Configuration;
-using LocalFilesMcp.Diagnostics;
-using LocalFilesMcp.Results;
+using LocalMcp.Configuration;
+using LocalMcp.Diagnostics;
+using LocalMcp.Results;
 
-namespace LocalFilesMcp.Tests;
+namespace LocalMcp.Tests;
 
 public class BuildVerificationTests
 {

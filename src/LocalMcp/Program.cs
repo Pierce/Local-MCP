@@ -1,4 +1,4 @@
-﻿using LocalFilesMcp.Diagnostics;
+﻿using LocalMcp.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -23,7 +23,7 @@ builder.Services
 var app = builder.Build();
 
 var logger = app.Services.GetRequiredService<ILogger<Program>>();
-logger.LogInformation("Local Files MCP server starting (Increment 0 scaffold)");
+logger.LogInformation("Local MCP server starting (Increment 0 scaffold)");
 
 try
 {

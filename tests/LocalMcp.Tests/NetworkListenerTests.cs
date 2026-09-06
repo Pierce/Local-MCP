@@ -1,7 +1,7 @@
 // Verify that normal startup does not create TCP, HTTP, or WebSocket listeners.
 // The v1 architecture mandates stdio-only transport.
 
-namespace LocalFilesMcp.Tests;
+namespace LocalMcp.Tests;
 
 public class NetworkListenerTests
 {
@@ -12,7 +12,7 @@ public class NetworkListenerTests
         // The server only uses WithStdioServerTransport().
         var programFile = Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory, "..", "..", "..", "..", "..",
-            "src", "LocalFilesMcp", "Program.cs"));
+            "src", "LocalMcp", "Program.cs"));
         var programCode = File.ReadAllText(programFile);
 
         Assert.DoesNotContain("HttpTransport", programCode);
@@ -26,7 +26,7 @@ public class NetworkListenerTests
     {
         var programFile = Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory, "..", "..", "..", "..", "..",
-            "src", "LocalFilesMcp", "Program.cs"));
+            "src", "LocalMcp", "Program.cs"));
         var programCode = File.ReadAllText(programFile);
 
         // The only transport configured must be stdio
@@ -41,7 +41,7 @@ public class NetworkListenerTests
         // Verify AspNetCore package is not referenced
         var csprojPath = Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory, "..", "..", "..", "..", "..",
-            "src", "LocalFilesMcp", "LocalFilesMcp.csproj"));
+            "src", "LocalMcp", "LocalMcp.csproj"));
         var csproj = File.ReadAllText(csprojPath);
 
         Assert.DoesNotContain("Microsoft.AspNetCore", csproj);

@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 
-namespace LocalFilesMcp.Diagnostics;
+namespace LocalMcp.Diagnostics;
 
 /// <summary>
 /// A logger that writes all diagnostic output to stderr, never to stdout.

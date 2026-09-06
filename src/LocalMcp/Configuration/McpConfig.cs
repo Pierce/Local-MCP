@@ -1,4 +1,4 @@
-// Configuration model types for the Local Files MCP server.
+// Configuration model types for the Local MCP server.
 // These describe the planned static TOML configuration structure.
 // IMPORTANT: This file defines ONLY model types.
 // No configuration files are located, loaded, canonicalized, opened,
@@ -7,10 +7,10 @@
 // The models may describe future configuration concepts related to
 // filesystem roots, but no host filesystem authority is exercised here.
 
-namespace LocalFilesMcp.Configuration;
+namespace LocalMcp.Configuration;
 
 /// <summary>
-/// Top-level configuration model for Local Files MCP.
+/// Top-level configuration model for Local MCP.
 /// Corresponds to the planned static TOML configuration file structure.
 /// </summary>
 public sealed class McpConfig
