@@ -23,9 +23,9 @@ internal sealed class ContainmentTestWorkspace : IDisposable
             throw new InvalidOperationException(opened.ErrorCode);
         }
 
-        var root = new ValidatedRoot("root", "Test root", opened.CanonicalPath!, opened.ObjectIdentity!, opened.Handle!);
+        var root = new ValidatedRoot("root", "Test root", [], opened.CanonicalPath!, opened.ObjectIdentity!, opened.Handle!);
         Registry = new ValidatedRootRegistry([root], new ConfigurationAuthorityIdentity(
-            opened.CanonicalPath!, opened.ObjectIdentity!, new byte[32]));
+            opened.CanonicalPath!, new FileObjectIdentity(ulong.MaxValue, "configuration"), new byte[32]));
         Native = new WindowsNativeFileSystem();
         Authorizer = new WindowsPathAuthorizer(Native);
     }

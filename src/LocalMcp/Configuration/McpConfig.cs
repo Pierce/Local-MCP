@@ -8,7 +8,8 @@ public sealed record RootDefinition(
     string Id,
     string Path,
     string? Description,
-    bool Enabled);
+    bool Enabled,
+    IReadOnlyList<string> DenyPaths);
 
 public enum SchemaCompatibility
 {

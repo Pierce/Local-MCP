@@ -22,7 +22,7 @@ public class ListRootsTests
         var root = Assert.Single(response.Roots);
         Assert.Equal("visible", root.RootId);
         Assert.Equal("Safe description", root.Description);
-        Assert.Empty(root.Capabilities);
+        Assert.Equal(new[] { "stat" }, root.Capabilities);
         Assert.DoesNotContain(workspace.BasePath, json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain(workspace.ValidRootPath, json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("invalid", json);

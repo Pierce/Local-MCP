@@ -16,7 +16,7 @@ public sealed class ListRootsTool
     [Description("Lists validated logical roots without exposing host filesystem paths.")]
     public ListRootsResponse ListRoots() => new(
         _registry.Roots.OrderBy(root => root.Id, StringComparer.Ordinal)
-            .Select(root => new RootSummary(root.Id, root.Description, Array.Empty<string>())).ToArray());
+            .Select(root => new RootSummary(root.Id, root.Description, new[] { "stat" })).ToArray());
 }
 
 public sealed record ListRootsResponse(

@@ -10,13 +10,13 @@ namespace LocalMcp.Tests;
 [SupportedOSPlatform("windows")]
 internal sealed class AuthorityTestWorkspace : IDisposable
 {
-    public AuthorityTestWorkspace()
+    public AuthorityTestWorkspace(bool configurationInsideRoot = false)
     {
         BasePath = Path.Combine(Path.GetTempPath(), $"local-mcp-inc1-{Guid.NewGuid():N}");
         Directory.CreateDirectory(BasePath);
         ValidRootPath = Path.Combine(BasePath, "valid-root");
         Directory.CreateDirectory(ValidRootPath);
-        ConfigurationPath = Path.Combine(BasePath, "authority.toml");
+        ConfigurationPath = Path.Combine(configurationInsideRoot ? ValidRootPath : BasePath, "authority.toml");
     }
 
     public string BasePath { get; }

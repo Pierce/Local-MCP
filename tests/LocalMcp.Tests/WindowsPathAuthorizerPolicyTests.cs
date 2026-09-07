@@ -187,7 +187,7 @@ public class WindowsPathAuthorizerPolicyTests
         {
             RootFacts = Facts(RootPath, "root", NativeObjectKind.Directory);
             Native = new FakeWindowsNativeFileSystem(_rootHandle, RootFacts);
-            var root = new ValidatedRoot("root", "test", RootPath, RootFacts.Identity, _rootHandle);
+            var root = new ValidatedRoot("root", "test", [], RootPath, RootFacts.Identity, _rootHandle);
             Registry = new ValidatedRootRegistry([root], new ConfigurationAuthorityIdentity(
                 RootPath, RootFacts.Identity, new byte[32]));
             Authorizer = new WindowsPathAuthorizer(Native);
@@ -257,6 +257,9 @@ public class WindowsPathAuthorizerPolicyTests
             !handle.IsClosed && _facts.TryGetValue(handle.DangerousGetHandle(), out var facts)
                 ? NativeFactsResult.Success(facts)
                 : NativeFactsResult.Failed(NativeFailure.Failed);
+
+        public NativeMetadataResult GetMetadata(SafeFileHandle handle, NativeObjectKind objectKind) =>
+            NativeMetadataResult.Failed(NativeFailure.Unsupported);
 
         public NativeSecurityResult GetSecurityDescriptor(SafeFileHandle handle) =>
             NativeSecurityResult.Failed(NativeFailure.Unsupported);

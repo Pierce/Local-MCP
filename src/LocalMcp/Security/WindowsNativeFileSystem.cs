@@ -37,6 +37,8 @@ internal sealed record NativeObjectFacts(
     NativeObjectKind ObjectKind,
     NativeReparseKind ReparseKind);
 
+internal sealed record NativeObjectMetadata(long? Size, DateTimeOffset ModifiedTimeUtc);
+
 internal sealed record NativeOpenResult(SafeFileHandle? Handle, NativeFailure Failure)
 {
     public bool IsSuccess => Handle is not null && !Handle.IsInvalid && Failure == NativeFailure.None;
@@ -51,6 +53,13 @@ internal sealed record NativeFactsResult(NativeObjectFacts? Facts, NativeFailure
     public static NativeFactsResult Failed(NativeFailure failure) => new(null, failure);
 }
 
+internal sealed record NativeMetadataResult(NativeObjectMetadata? Metadata, NativeFailure Failure)
+{
+    public bool IsSuccess => Metadata is not null && Failure == NativeFailure.None;
+    public static NativeMetadataResult Success(NativeObjectMetadata metadata) => new(metadata, NativeFailure.None);
+    public static NativeMetadataResult Failed(NativeFailure failure) => new(null, failure);
+}
+
 internal sealed record NativeSecurityResult(byte[]? SecurityDescriptor, NativeFailure Failure)
 {
     public bool IsSuccess => SecurityDescriptor is not null && Failure == NativeFailure.None;
@@ -63,6 +72,7 @@ internal interface IWindowsNativeFileSystem
     NativeOpenResult OpenMetadata(string path, bool followReparse);
     NativeOpenResult OpenReadOnly(string path, bool followReparse);
     NativeFactsResult GetFacts(SafeFileHandle handle);
+    NativeMetadataResult GetMetadata(SafeFileHandle handle, NativeObjectKind objectKind);
     NativeSecurityResult GetSecurityDescriptor(SafeFileHandle handle);
     bool IsFixedLocalDrive(string driveRoot);
 }
@@ -89,6 +99,8 @@ internal sealed class WindowsNativeFileSystem : IWindowsNativeFileSystem
     private const uint OwnerSecurityInformation = 0x00000001;
     private const uint DaclSecurityInformation = 0x00000004;
     private const int SeFileObject = 1;
+    private const int FileBasicInfoClass = 0;
+    private const int FileStandardInfoClass = 1;
     private const int FileAttributeTagInfoClass = 9;
     private const int FileIdInfoClass = 18;
 
@@ -143,6 +155,34 @@ internal sealed class WindowsNativeFileSystem : IWindowsNativeFileSystem
             new FileObjectIdentity(fileId.VolumeSerialNumber, Convert.ToHexString(fileId.FileId)),
             objectKind,
             reparseKind));
+    }
+
+    public NativeMetadataResult GetMetadata(SafeFileHandle handle, NativeObjectKind objectKind)
+    {
+        if (handle.IsInvalid || handle.IsClosed || objectKind == NativeObjectKind.Unsupported)
+            return NativeMetadataResult.Failed(NativeFailure.Unsupported);
+
+        if (!GetFileInformationByHandleEx(handle, FileBasicInfoClass, out FileBasicInfo basic,
+                checked((uint)Marshal.SizeOf<FileBasicInfo>())) ||
+            !GetFileInformationByHandleEx(handle, FileStandardInfoClass, out FileStandardInfo standard,
+                checked((uint)Marshal.SizeOf<FileStandardInfo>())))
+        {
+            return NativeMetadataResult.Failed(MapError(Marshal.GetLastWin32Error()));
+        }
+
+        if (standard.EndOfFile < 0 || (objectKind == NativeObjectKind.Directory) != standard.Directory)
+            return NativeMetadataResult.Failed(NativeFailure.Unsupported);
+
+        try
+        {
+            var modified = DateTimeOffset.FromFileTime(basic.LastWriteTime).ToUniversalTime();
+            return NativeMetadataResult.Success(new NativeObjectMetadata(
+                objectKind == NativeObjectKind.File ? standard.EndOfFile : null, modified));
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return NativeMetadataResult.Failed(NativeFailure.Failed);
+        }
     }
 
     public NativeSecurityResult GetSecurityDescriptor(SafeFileHandle handle)
@@ -239,6 +279,26 @@ internal sealed class WindowsNativeFileSystem : IWindowsNativeFileSystem
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)] public byte[] FileId;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct FileBasicInfo
+    {
+        public long CreationTime;
+        public long LastAccessTime;
+        public long LastWriteTime;
+        public long ChangeTime;
+        public uint FileAttributes;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct FileStandardInfo
+    {
+        public long AllocationSize;
+        public long EndOfFile;
+        public uint NumberOfLinks;
+        [MarshalAs(UnmanagedType.U1)] public bool DeletePending;
+        [MarshalAs(UnmanagedType.U1)] public bool Directory;
+    }
+
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
     private static extern SafeFileHandle CreateFileW(string fileName, uint desiredAccess, uint shareMode,
         IntPtr securityAttributes, uint creationDisposition, uint flagsAndAttributes, IntPtr templateFile);
@@ -256,6 +316,16 @@ internal sealed class WindowsNativeFileSystem : IWindowsNativeFileSystem
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetFileInformationByHandleEx(SafeFileHandle file, int informationClass,
         out FileIdInfo information, uint bufferSize);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetFileInformationByHandleEx(SafeFileHandle file, int informationClass,
+        out FileBasicInfo information, uint bufferSize);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetFileInformationByHandleEx(SafeFileHandle file, int informationClass,
+        out FileStandardInfo information, uint bufferSize);
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern uint GetDriveTypeW(string rootPathName);

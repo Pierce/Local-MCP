@@ -11,7 +11,7 @@ internal sealed class ConfigurationAuthorityLoader
 {
     private const int MaximumConfigurationBytes = 1_048_576;
     private static readonly HashSet<string> TopLevelFields = new(StringComparer.Ordinal) { "schema_version", "roots" };
-    private static readonly HashSet<string> RootFields = new(StringComparer.Ordinal) { "id", "path", "description", "enabled" };
+    private static readonly HashSet<string> RootFields = new(StringComparer.Ordinal) { "id", "path", "description", "enabled", "deny" };
     private readonly IWindowsFileSystemAuthority _authority;
 
     public ConfigurationAuthorityLoader(IWindowsFileSystemAuthority authority) => _authority = authority;
@@ -82,7 +82,10 @@ internal sealed class ConfigurationAuthorityLoader
                 description = candidate;
             }
 
-            roots.Add(new RootDefinition(id!, path!, description, enabled));
+            if (!TryDenyPaths(rootTable, out var denyPaths))
+                return ConfigurationLoadResult.Failure("CONFIG_DENY_RULE_AMBIGUOUS");
+
+            roots.Add(new RootDefinition(id!, path!, description, enabled, denyPaths!));
         }
 
         if (roots.GroupBy(root => root.Id, StringComparer.OrdinalIgnoreCase).Any(group => group.Count() > 1))
@@ -103,7 +106,7 @@ internal sealed class ConfigurationAuthorityLoader
                 continue;
             }
 
-            validatedRoots.Add(new ValidatedRoot(root.Id, root.Description, openedRoot.CanonicalPath!,
+            validatedRoots.Add(new ValidatedRoot(root.Id, root.Description, root.DenyPaths, openedRoot.CanonicalPath!,
                 openedRoot.ObjectIdentity!, openedRoot.Handle!));
         }
 
@@ -127,4 +130,27 @@ internal sealed class ConfigurationAuthorityLoader
         value.All(character => !char.IsControl(character)) &&
         !value.Contains(":\\", StringComparison.Ordinal) &&
         !value.Contains("\\\\", StringComparison.Ordinal);
+
+    private static bool TryDenyPaths(TomlTable table, out IReadOnlyList<string>? denyPaths)
+    {
+        denyPaths = Array.Empty<string>();
+        if (!table.TryGetValue("deny", out var raw)) return true;
+        if (raw is not TomlArray array) return false;
+
+        var parsed = new List<string>(array.Count);
+        foreach (var item in array)
+        {
+            if (item is not string candidate ||
+                !WindowsRelativePath.TryParse(candidate, out var relativePath) ||
+                parsed.Contains(relativePath!.Value, StringComparer.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            parsed.Add(relativePath.Value);
+        }
+
+        denyPaths = parsed;
+        return true;
+    }
 }

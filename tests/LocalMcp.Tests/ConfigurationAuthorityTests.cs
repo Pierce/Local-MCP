@@ -152,6 +152,44 @@ public class ConfigurationAuthorityTests
         Assert.Equal("ROOT_TARGET_UNSUPPORTED", result.RootIssues.Single().ErrorCode);
     }
 
+    [Fact]
+    public void AdditiveRootDenyPaths_AreAcceptedAndPreserved()
+    {
+        using var workspace = new AuthorityTestWorkspace();
+        workspace.WriteConfiguration($"schema_version = 1\n[[roots]]\nid='root'\npath='{workspace.ValidRootPath}'\nenabled=true\ndeny=['private-area', 'nested\\restricted']\n");
+        var result = workspace.Load();
+        using var registry = result.Registry;
+
+        Assert.True(result.IsSuccess, result.FatalErrorCode);
+        Assert.Equal(new[] { "private-area", @"nested\restricted" }, registry!.Roots.Single().DenyPaths);
+    }
+
+    [Theory]
+    [InlineData("deny = 'private-area'")]
+    [InlineData("deny = ['..\\outside']")]
+    [InlineData("deny = ['C:\\outside']")]
+    [InlineData("deny = ['private*']")]
+    [InlineData("deny = ['private', 'PRIVATE']")]
+    public void AmbiguousOrNonLiteralDenyConfiguration_FailsClosed(string deny)
+    {
+        using var workspace = new AuthorityTestWorkspace();
+        workspace.WriteConfiguration($"schema_version = 1\n[[roots]]\nid='root'\npath='{workspace.ValidRootPath}'\nenabled=true\n{deny}\n");
+
+        Assert.Equal("CONFIG_DENY_RULE_AMBIGUOUS", workspace.Load().FatalErrorCode);
+    }
+
+    [Theory]
+    [InlineData("allow_sensitive = true")]
+    [InlineData("disable_builtin_denies = true")]
+    [InlineData("allow = ['.ssh']")]
+    public void AttemptsToWeakenBuiltInPolicy_AreUnknownAuthorityFieldsAndFatal(string overrideField)
+    {
+        using var workspace = new AuthorityTestWorkspace();
+        workspace.WriteConfiguration($"schema_version = 1\n[[roots]]\nid='root'\npath='{workspace.ValidRootPath}'\nenabled=true\n{overrideField}\n");
+
+        Assert.Equal("CONFIG_UNKNOWN_AUTHORITY_FIELD", workspace.Load().FatalErrorCode);
+    }
+
     private sealed class RootFailureAuthority(IWindowsFileSystemAuthority inner, string errorCode) : IWindowsFileSystemAuthority
     {
         public AuthorityOpenResult OpenConfiguration(string explicitPath) => inner.OpenConfiguration(explicitPath);

@@ -39,7 +39,7 @@ public static class LocalMcpApplication
         var builder = Host.CreateApplicationBuilder(settings);
         builder.Logging.AddProvider(new ProtocolSafeLoggerProvider());
         builder.Services.AddSingleton(authority.Registry!);
-        builder.Services.AddMcpServer().WithStdioServerTransport().WithTools<ListRootsTool>();
+        builder.Services.AddMcpServer().WithStdioServerTransport().WithTools<ListRootsTool>().WithTools<StatTool>();
 
         using var app = builder.Build();
         var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("LocalMcp.Startup");

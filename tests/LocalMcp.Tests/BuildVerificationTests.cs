@@ -11,7 +11,7 @@ public class BuildVerificationTests
     [Fact]
     public void IncrementOneTypes_AreReachable()
     {
-        var config = new McpConfig(1, [new RootDefinition("root-a", @"C:\safe", "Safe", true)]);
+        var config = new McpConfig(1, [new RootDefinition("root-a", @"C:\safe", "Safe", true, [])]);
         Assert.Equal(1, config.SchemaVersion);
         Assert.Single(config.Roots);
         Assert.Equal(SchemaCompatibility.Current, SchemaCompatibilityPolicy.Classify(1L));
@@ -26,11 +26,19 @@ public class BuildVerificationTests
     }
 
     [Fact]
-    public void IncrementTwoContainmentTypes_AreReachableWithoutAddingAnMcpTool()
+    public void IncrementTwoContainmentTypes_AreReachable()
     {
         Assert.NotNull(typeof(WindowsNativeFileSystem));
         Assert.NotNull(typeof(WindowsPathAuthorizer));
         Assert.NotNull(typeof(WindowsAuthorizationResult));
         Assert.NotNull(typeof(AuthorizedFileSystemObject));
+    }
+
+    [Fact]
+    public void IncrementThreePolicyAndStatTypes_AreReachable()
+    {
+        Assert.NotNull(typeof(SensitivePathPolicy));
+        Assert.NotNull(typeof(StatTool));
+        Assert.NotNull(typeof(StatResponse));
     }
 }
