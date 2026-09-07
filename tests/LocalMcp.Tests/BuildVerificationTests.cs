@@ -1,6 +1,7 @@
 using LocalMcp.Configuration;
 using LocalMcp.Diagnostics;
 using LocalMcp.Results;
+using LocalMcp.Security;
 using LocalMcp.Tools;
 
 namespace LocalMcp.Tests;
@@ -22,5 +23,14 @@ public class BuildVerificationTests
         using var provider = new ProtocolSafeLoggerProvider();
         Assert.NotNull(provider.CreateLogger("Test"));
         Assert.True(OperationResult.Success().IsSuccess);
+    }
+
+    [Fact]
+    public void IncrementTwoContainmentTypes_AreReachableWithoutAddingAnMcpTool()
+    {
+        Assert.NotNull(typeof(WindowsNativeFileSystem));
+        Assert.NotNull(typeof(WindowsPathAuthorizer));
+        Assert.NotNull(typeof(WindowsAuthorizationResult));
+        Assert.NotNull(typeof(AuthorizedFileSystemObject));
     }
 }

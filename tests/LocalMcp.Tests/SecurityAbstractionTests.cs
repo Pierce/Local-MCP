@@ -49,7 +49,26 @@ public class SecurityAbstractionTests
             Assert.DoesNotContain("Directory.Delete", content);
             Assert.DoesNotContain("File.Move", content);
             Assert.DoesNotContain("File.Copy", content);
+            Assert.DoesNotContain("SetFileInformationByHandle", content);
+            Assert.DoesNotContain("SetFileSecurity", content);
+            Assert.DoesNotContain("CreateDirectoryW", content);
+            Assert.DoesNotContain("DeleteFileW", content);
+            Assert.DoesNotContain("MoveFile", content);
+            Assert.DoesNotContain("FILE_WRITE_DATA", content, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("GenericWrite", content);
         }
+    }
+
+    [Fact]
+    public void NativeInterop_IsConfinedToOneCapabilitySpecificModule()
+    {
+        var sourceDir = GetSourceDir();
+        var interopFiles = Directory.GetFiles(sourceDir, "*.cs", SearchOption.AllDirectories)
+            .Where(path => File.ReadAllText(path).Contains("[DllImport", StringComparison.Ordinal))
+            .Select(path => Path.GetFileName(path)!)
+            .ToArray();
+
+        Assert.Equal(["WindowsNativeFileSystem.cs"], interopFiles);
     }
 
     private static string GetSourceDir()
