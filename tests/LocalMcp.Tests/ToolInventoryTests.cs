@@ -3,14 +3,15 @@ namespace LocalMcp.Tests;
 public class ToolInventoryTests
 {
     [Fact]
-    public void OnlyListRootsAndStatTools_AreRegistered()
+    public void OnlyGovernedIncrementFourLocalFilesTools_AreRegistered()
     {
         var source = ReadAllSource();
         Assert.Contains("WithTools<ListRootsTool>", source);
         Assert.Contains("Name = \"list_roots\"", source);
         Assert.Contains("WithTools<StatTool>", source);
         Assert.Contains("McpServerTool(Name = \"stat\"", source);
-        Assert.DoesNotContain("list_directory", source);
+        Assert.Contains("WithTools<ListDirectoryTool>", source);
+        Assert.Contains("McpServerTool(Name = \"list_directory\"", source);
         Assert.DoesNotContain("read_text", source);
         Assert.DoesNotContain("search_filenames", source);
         Assert.DoesNotContain("search_text", source);

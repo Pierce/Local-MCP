@@ -17,13 +17,59 @@ internal sealed class WindowsPathAuthorizer
         ValidatedRootRegistry registry,
         string rootId,
         string? clientRelativePath)
+        => AuthorizeCore(registry, rootId, clientRelativePath, allowRoot: false);
+
+    /// <summary>
+    /// Uses the same opened-object authorization path as direct object operations, while allowing
+    /// the empty logical path to identify the configured root directory itself.
+    /// </summary>
+    public WindowsAuthorizationResult AuthorizeDirectory(
+        ValidatedRootRegistry registry,
+        string rootId,
+        string? clientRelativePath)
+        => AuthorizeCore(registry, rootId, clientRelativePath, allowRoot: true);
+
+    public AuthorizationOutcome RevalidateDirectory(
+        ValidatedRootRegistry registry,
+        AuthorizedFileSystemObject expected)
+    {
+        var currentFacts = _native.GetFacts(expected.Handle);
+        if (!currentFacts.IsSuccess || currentFacts.Facts!.Identity != expected.Facts.Identity ||
+            !CanonicalEquivalent(currentFacts.Facts.CanonicalPath, expected.Facts.CanonicalPath))
+        {
+            return AuthorizationOutcome.PathChanged;
+        }
+
+        var fresh = AuthorizeDirectory(registry, expected.RootId, expected.RelativePath);
+        if (!fresh.IsAuthorized)
+        {
+            return fresh.Outcome;
+        }
+
+        using var current = fresh.AuthorizedObject!;
+        return current.Facts.Identity == expected.Facts.Identity &&
+               CanonicalEquivalent(current.Facts.CanonicalPath, expected.Facts.CanonicalPath)
+            ? AuthorizationOutcome.Authorized
+            : AuthorizationOutcome.PathChanged;
+    }
+
+    private WindowsAuthorizationResult AuthorizeCore(
+        ValidatedRootRegistry registry,
+        string rootId,
+        string? clientRelativePath,
+        bool allowRoot)
     {
         if (!registry.TryGet(rootId, out var root) || root is null)
         {
             return WindowsAuthorizationResult.Deny(AuthorizationOutcome.RootNotFound);
         }
 
-        if (!WindowsRelativePath.TryParse(clientRelativePath, out var relativePath))
+        WindowsRelativePath? relativePath;
+        if (allowRoot && clientRelativePath == string.Empty)
+        {
+            relativePath = new WindowsRelativePath(string.Empty, Array.Empty<string>());
+        }
+        else if (!WindowsRelativePath.TryParse(clientRelativePath, out relativePath))
         {
             return WindowsAuthorizationResult.Deny(AuthorizationOutcome.PathInvalid);
         }

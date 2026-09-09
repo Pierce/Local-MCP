@@ -40,11 +40,14 @@ public static class LocalMcpApplication
         var builder = Host.CreateApplicationBuilder(settings);
         builder.Logging.AddProvider(new ProtocolSafeLoggerProvider());
         builder.Services.AddSingleton(authority.Registry!);
+        // Construct the non-persistent pagination authority during startup. The one instance and
+        // its random secrets live only for this server process and are disposed with the host.
+        builder.Services.AddSingleton(new DirectoryCursorProtector());
 
         // Local Files tools are registered unconditionally based on configuration
         // availability. They are independent of the Handoff Retrieval capability.
         var mcpBuilder = builder.Services.AddMcpServer().WithStdioServerTransport()
-            .WithTools<ListRootsTool>().WithTools<StatTool>();
+            .WithTools<ListRootsTool>().WithTools<StatTool>().WithTools<ListDirectoryTool>();
 
         // Handoff Retrieval capability (separately governed, independent authorization)
         var handoffConfig = authority.Configuration?.HandoffRetrieval ?? HandoffRetrievalConfig.Disabled();

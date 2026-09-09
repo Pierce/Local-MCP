@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using LocalMcp.Hosting;
 
 namespace LocalMcp.Tests;
 
@@ -47,7 +48,7 @@ public class ProcessLifecycleTests
         Assert.DoesNotContain(workspace.ValidRootPath, result.ToolCallResponse, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("list_roots", result.ToolsListResponse);
         Assert.Contains("stat", result.ToolsListResponse);
-        Assert.DoesNotContain("list_directory", result.ToolsListResponse);
+        Assert.Contains("list_directory", result.ToolsListResponse);
         Assert.DoesNotContain("read_text", result.ToolsListResponse);
         Assert.Contains("allowed.txt", result.AllowedStatResponse);
         Assert.Contains("relative_path", result.AllowedStatResponse);
@@ -62,11 +63,11 @@ public class ProcessLifecycleTests
 
     private static async Task<ProcessResult> RunProcessAsync(string[] arguments, bool sendProtocol)
     {
-        var projectDir = Path.Combine(TestPaths.RepositoryRoot, "src", "LocalMcp");
+        var applicationAssembly = typeof(LocalMcpApplication).Assembly.Location;
         var startInfo = new ProcessStartInfo
         {
             FileName = "dotnet",
-            Arguments = $"run --project \"{projectDir}\" --no-build -- {string.Join(' ', arguments.Select(argument => $"\"{argument}\""))}",
+            Arguments = $"\"{applicationAssembly}\" {string.Join(' ', arguments.Select(argument => $"\"{argument}\""))}",
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
