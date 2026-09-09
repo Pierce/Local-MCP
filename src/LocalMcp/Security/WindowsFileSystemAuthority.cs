@@ -91,6 +91,48 @@ internal sealed class WindowsFileSystemAuthority : IWindowsFileSystemAuthority
         return AuthorityOpenResult.Success(handle, facts.Facts.CanonicalPath, facts.Facts.Identity);
     }
 
+    /// <summary>
+    /// Opens the governed Handoff Retrieval store directory through the same
+    /// opened-object/native filesystem identity machinery used for Local Files
+    /// roots. Following reparse points means a configured junction/spelling that
+    /// looks disjoint is resolved to its physical target so that R-01 structural
+    /// non-exposure validation compares real filesystem identity, not lexical
+    /// spelling. Handles are never exposed client-side and only the resolved
+    /// canonical path + identity are returned.
+    /// </summary>
+    public AuthorityOpenResult OpenStore(string configuredPath)
+    {
+        var normalized = ValidateAbsoluteLocalPath(configuredPath);
+        if (normalized.ErrorCode is not null)
+        {
+            return AuthorityOpenResult.Failure("HANDOFF_STORE_TARGET_UNSUPPORTED");
+        }
+
+        var opened = _native.OpenMetadata(normalized.Path!, followReparse: true);
+        if (!opened.IsSuccess)
+        {
+            return AuthorityOpenResult.Failure(MapOpenFailure(opened.Failure, "HANDOFF_STORE"));
+        }
+
+        var handle = opened.Handle!;
+        var facts = _native.GetFacts(handle);
+        if (!facts.IsSuccess)
+        {
+            handle.Dispose();
+            return AuthorityOpenResult.Failure("HANDOFF_STORE_IDENTITY_UNAVAILABLE");
+        }
+
+        if (facts.Facts!.ObjectKind != NativeObjectKind.Directory ||
+            facts.Facts.ReparseKind == NativeReparseKind.Unsupported ||
+            !WindowsCanonicalPath.TryParse(facts.Facts.CanonicalPath, out _))
+        {
+            handle.Dispose();
+            return AuthorityOpenResult.Failure("HANDOFF_STORE_TARGET_UNSUPPORTED");
+        }
+
+        return AuthorityOpenResult.Success(handle, facts.Facts.CanonicalPath, facts.Facts.Identity);
+    }
+
     public AclEvaluationResult EvaluateConfigurationAcl(SafeFileHandle handle)
     {
         var security = _native.GetSecurityDescriptor(handle);

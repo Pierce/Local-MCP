@@ -11,7 +11,7 @@ public class BuildVerificationTests
     [Fact]
     public void IncrementOneTypes_AreReachable()
     {
-        var config = new McpConfig(1, [new RootDefinition("root-a", @"C:\safe", "Safe", true, [])]);
+        var config = new McpConfig(1, [new RootDefinition("root-a", @"C:\safe", "Safe", true, [])], HandoffRetrievalConfig.Disabled());
         Assert.Equal(1, config.SchemaVersion);
         Assert.Single(config.Roots);
         Assert.Equal(SchemaCompatibility.Current, SchemaCompatibilityPolicy.Classify(1L));

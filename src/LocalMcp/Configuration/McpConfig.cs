@@ -1,7 +1,7 @@
 namespace LocalMcp.Configuration;
 
 /// <summary>The only current, explicitly governed Local Files configuration schema.</summary>
-public sealed record McpConfig(int SchemaVersion, IReadOnlyList<RootDefinition> Roots);
+public sealed record McpConfig(int SchemaVersion, IReadOnlyList<RootDefinition> Roots, HandoffRetrievalConfig HandoffRetrieval);
 
 /// <summary>A root declaration as parsed from the one active authority file.</summary>
 public sealed record RootDefinition(

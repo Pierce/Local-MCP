@@ -3,7 +3,7 @@ namespace LocalMcp.Tests;
 public class ToolInventoryTests
 {
     [Fact]
-    public void OnlyListRootsAndIncrementThreeStatTools_AreRegistered()
+    public void OnlyListRootsAndStatTools_AreRegistered()
     {
         var source = ReadAllSource();
         Assert.Contains("WithTools<ListRootsTool>", source);
@@ -27,6 +27,28 @@ public class ToolInventoryTests
         Assert.DoesNotContain("discover_config", source);
         Assert.DoesNotContain("switch_profile", source);
         Assert.DoesNotContain("reload_config", source);
+    }
+
+    [Fact]
+    public void NoHandoffDiscoveryOrListingTools_Exist()
+    {
+        var source = ReadAllSource();
+        // The only authorized handoff tool is get_handoff
+        Assert.DoesNotContain("list_handoffs", source);
+        Assert.DoesNotContain("search_handoffs", source);
+        Assert.DoesNotContain("get_latest_handoff", source);
+        Assert.DoesNotContain("get_pending_handoff", source);
+    }
+
+    [Fact]
+    public void OnlyGetHandoff_IsAuthorizedHandoffTool()
+    {
+        var source = ReadAllSource();
+        // Verify get_handoff is present (conditionally registered)
+        Assert.Contains("McpServerTool(Name = \"get_handoff\"", source);
+        Assert.Contains("GetHandoffTool", source);
+        // No handoff tool accepts filesystem paths
+        Assert.Contains("get_handoff", source);
     }
 
     private static string ReadAllSource()

@@ -1,5 +1,6 @@
 using LocalMcp.Configuration;
 using LocalMcp.Diagnostics;
+using LocalMcp.Handoff;
 using LocalMcp.Roots;
 using LocalMcp.Security;
 using LocalMcp.Tools;
@@ -39,12 +40,31 @@ public static class LocalMcpApplication
         var builder = Host.CreateApplicationBuilder(settings);
         builder.Logging.AddProvider(new ProtocolSafeLoggerProvider());
         builder.Services.AddSingleton(authority.Registry!);
-        builder.Services.AddMcpServer().WithStdioServerTransport().WithTools<ListRootsTool>().WithTools<StatTool>();
+
+        // Local Files tools are registered unconditionally based on configuration
+        // availability. They are independent of the Handoff Retrieval capability.
+        var mcpBuilder = builder.Services.AddMcpServer().WithStdioServerTransport()
+            .WithTools<ListRootsTool>().WithTools<StatTool>();
+
+        // Handoff Retrieval capability (separately governed, independent authorization)
+        var handoffConfig = authority.Configuration?.HandoffRetrieval ?? HandoffRetrievalConfig.Disabled();
+        if (handoffConfig.IsEnabled)
+        {
+            var handoffStore = new HandoffStore(handoffConfig);
+            builder.Services.AddSingleton(handoffStore);
+            mcpBuilder.WithTools<GetHandoffTool>();
+        }
 
         using var app = builder.Build();
         var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("LocalMcp.Startup");
         foreach (var issue in authority.RootIssues)
             logger.LogWarning("Configured root {RootId} disabled: {ErrorCode}", issue.RootId, issue.ErrorCode);
+
+        if (handoffConfig.IsEnabled)
+        {
+            logger.LogInformation("Handoff Retrieval capability enabled with recipient reference: {Recipient}",
+                handoffConfig.IntendedRecipientReference);
+        }
 
         logger.LogInformation("Local MCP server starting with {RootCount} validated root(s)", authority.Registry!.Roots.Count);
         try

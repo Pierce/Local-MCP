@@ -194,6 +194,7 @@ public class ConfigurationAuthorityTests
     {
         public AuthorityOpenResult OpenConfiguration(string explicitPath) => inner.OpenConfiguration(explicitPath);
         public AuthorityOpenResult OpenRoot(string configuredPath) => AuthorityOpenResult.Failure(errorCode);
+        public AuthorityOpenResult OpenStore(string configuredPath) => AuthorityOpenResult.Failure(errorCode);
         public AclEvaluationResult EvaluateConfigurationAcl(Microsoft.Win32.SafeHandles.SafeFileHandle handle) => inner.EvaluateConfigurationAcl(handle);
     }
 }

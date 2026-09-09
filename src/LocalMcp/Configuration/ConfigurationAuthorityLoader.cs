@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using LocalMcp.Handoff;
 using LocalMcp.Roots;
 using LocalMcp.Security;
 using Tomlyn;
@@ -10,7 +11,7 @@ namespace LocalMcp.Configuration;
 internal sealed class ConfigurationAuthorityLoader
 {
     private const int MaximumConfigurationBytes = 1_048_576;
-    private static readonly HashSet<string> TopLevelFields = new(StringComparer.Ordinal) { "schema_version", "roots" };
+    private static readonly HashSet<string> TopLevelFields = new(StringComparer.Ordinal) { "schema_version", "roots", "handoff_retrieval" };
     private static readonly HashSet<string> RootFields = new(StringComparer.Ordinal) { "id", "path", "description", "enabled", "deny" };
     private readonly IWindowsFileSystemAuthority _authority;
 
@@ -91,7 +92,12 @@ internal sealed class ConfigurationAuthorityLoader
         if (roots.GroupBy(root => root.Id, StringComparer.OrdinalIgnoreCase).Any(group => group.Count() > 1))
             return ConfigurationLoadResult.Failure("CONFIG_DUPLICATE_ROOT_ID");
 
-        var config = new McpConfig(SchemaCompatibilityPolicy.CurrentSchemaVersion, roots);
+        // Parse handoff_retrieval section (separately governed capability)
+        var handoffConfig = ParseHandoffRetrievalConfig(table);
+        if (handoffConfig is null)
+            return ConfigurationLoadResult.Failure("HANOFF_RETRIEVAL_CONFIG_INVALID");
+
+        var config = new McpConfig(SchemaCompatibilityPolicy.CurrentSchemaVersion, roots, handoffConfig);
         var activeConfiguration = new ConfigurationAuthorityIdentity(
             configurationOpen.CanonicalPath!, configurationOpen.ObjectIdentity!, SHA256.HashData(content));
         var validatedRoots = new List<ValidatedRoot>();
@@ -110,8 +116,121 @@ internal sealed class ConfigurationAuthorityLoader
                 openedRoot.ObjectIdentity!, openedRoot.Handle!));
         }
 
+        // R-01: Structural Local Files non-exposure validation (after roots are validated)
+        if (handoffConfig.IsEnabled)
+        {
+            var exposureError = ValidateNoLocalFilesExposure(validatedRoots, handoffConfig);
+            if (exposureError is not null)
+                return ConfigurationLoadResult.Failure(exposureError);
+        }
+
         return ConfigurationLoadResult.Success(config,
             new ValidatedRootRegistry(validatedRoots, activeConfiguration), activeConfiguration, issues);
+    }
+private static HandoffRetrievalConfig? ParseHandoffRetrievalConfig(TomlTable table)
+    {
+        if (!table.TryGetValue("handoff_retrieval", out var raw))
+        {
+            // No handoff_retrieval section means disabled
+            return HandoffRetrievalConfig.Disabled();
+        }
+
+        if (raw is not TomlTable hrTable)
+            return null;
+
+        // enabled (required, default false)
+        var enabled = false;
+        if (hrTable.TryGetValue("enabled", out var rawEnabled) && rawEnabled is bool enabledVal)
+            enabled = enabledVal;
+
+        if (!enabled)
+            return HandoffRetrievalConfig.Disabled();
+
+        // store_path (required when enabled)
+        string? storePath;
+        if (!TryRequiredString(hrTable, "store_path", out storePath) || !Path.IsPathFullyQualified(storePath!))
+            return null;
+
+        // intended_recipient_reference (required when enabled)
+        string? recipientRef;
+        if (!TryRequiredString(hrTable, "intended_recipient_reference", out recipientRef))
+            return null;
+
+        // hmac_key_base64 (required when enabled)
+        byte[] hmacKey;
+        if (!hrTable.TryGetValue("hmac_key_base64", out var rawKey) || rawKey is not string keyBase64)
+            return null;
+
+        try { hmacKey = Convert.FromBase64String(keyBase64); }
+        catch (FormatException) { return null; }
+
+        if (hmacKey.Length == 0)
+            return null;
+
+        // max_payload_bytes (optional)
+        long maxPayload = HandoffRetrievalConfig.DefaultMaxPayloadBytes;
+        if (hrTable.TryGetValue("max_payload_bytes", out var rawMax))
+        {
+            if (rawMax is long maxVal && maxVal > 0 && maxVal <= 10_000_000)
+                maxPayload = maxVal;
+            else if (rawMax is not null)
+                return null;
+        }
+
+        // max_manifest_bytes (optional)
+        long maxManifest = HandoffRetrievalConfig.DefaultMaxManifestBytes;
+        if (hrTable.TryGetValue("max_manifest_bytes", out var rawMaxManifest))
+        {
+            if (rawMaxManifest is long maxMVal && maxMVal > 0 && maxMVal <= 1_000_000)
+                maxManifest = maxMVal;
+            else if (rawMaxManifest is not null)
+                return null;
+        }
+
+        // Verify store path exists
+        if (!Directory.Exists(storePath!))
+            return null;
+
+        return new HandoffRetrievalConfig(true, storePath!, recipientRef!, hmacKey, maxPayload, maxManifest);
+    }
+
+    private string? ValidateNoLocalFilesExposure(
+        IReadOnlyList<ValidatedRoot> validatedRoots, HandoffRetrievalConfig handoffConfig)
+    {
+        if (!handoffConfig.IsEnabled)
+            return null;
+
+        // Open the store through the same opened-object/native filesystem identity
+        // machinery used for Local Files roots. This resolves reparse/junction
+        // aliases so containment is decided on physical filesystem identity, not on
+        // the configured lexical store_path spelling. A store junction whose target
+        // physically lies within a Local Files root is therefore detected.
+        var openedStore = _authority.OpenStore(handoffConfig.StorePath);
+        if (!openedStore.IsSuccess)
+            return openedStore.ErrorCode ?? "HANOFF_STORE_PATH_INVALID";
+
+        using var storeHandle = openedStore.Handle!;
+        if (!WindowsCanonicalPath.TryParse(openedStore.CanonicalPath!, out var storePath))
+            return "HANOFF_STORE_PATH_INVALID";
+
+        foreach (var root in validatedRoots)
+        {
+            // Root canonical path is the resolved native identity from OpenRoot().
+            if (!WindowsCanonicalPath.TryParse(root.CanonicalPath, out var rootPath))
+                continue;
+
+            // Physical store must not be within physical root (R01-N1 / R01-N4).
+            if (WindowsCanonicalPath.Contains(rootPath!, storePath!))
+                return "HANOFF_STORE_EXPOSED_BY_ROOT";
+
+            // Physical root must not be within physical store (R01-N2 / R01-N3).
+            // Resolving both sides through native identity means a root junction or
+            // a store junction cannot hide the physical containment relationship.
+            if (WindowsCanonicalPath.Contains(storePath!, rootPath!))
+                return "HANOFF_STORE_EXPOSED_BY_ROOT";
+        }
+
+        return null;
     }
 
     private static bool TryRequiredString(TomlTable table, string key, out string? value)

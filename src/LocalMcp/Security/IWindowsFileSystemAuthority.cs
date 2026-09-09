@@ -7,6 +7,7 @@ internal interface IWindowsFileSystemAuthority
 {
     AuthorityOpenResult OpenConfiguration(string explicitPath);
     AuthorityOpenResult OpenRoot(string configuredPath);
+    AuthorityOpenResult OpenStore(string configuredPath);
     AclEvaluationResult EvaluateConfigurationAcl(SafeFileHandle handle);
 }
 
